@@ -1,0 +1,1447 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token 用量</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --muted: #52514e;
+    --faint: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --series: #2a78d6;
+    --stroke: rgba(11, 11, 11, .10);
+    --heat: 42, 120, 214;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --muted: #c3c2b7;
+    --faint: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --series: #3987e5;
+    --stroke: rgba(255, 255, 255, .10);
+    --heat: 57, 135, 229;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --muted: #c3c2b7;
+      --faint: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --series: #3987e5;
+      --stroke: rgba(255, 255, 255, .10);
+      --heat: 57, 135, 229;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--page);
+    color: var(--ink);
+  }
+
+  body {
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px 20px 48px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    margin: 0 0 4px;
+  }
+
+  h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0;
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font: inherit;
+  }
+
+  .ghost {
+    appearance: none;
+    border: 1px solid var(--stroke);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 12.5px;
+  }
+
+  .ghost:hover { border-color: var(--axis); }
+  .ghost:disabled { color: var(--faint); cursor: default; }
+
+  .ghost:focus-visible,
+  .segmented button:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--series);
+    outline-offset: 2px;
+  }
+
+  .banner {
+    border: 1px solid var(--stroke);
+    border-left: 3px solid var(--ink);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    margin: 0 0 14px;
+  }
+
+  .banner[hidden] { display: none; }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+  }
+
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--stroke);
+    border-radius: 10px;
+    padding: 14px 16px;
+    min-width: 0;
+  }
+
+  .tile-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tile-label {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .tile-delta {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .tile-value {
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 2px 0 4px;
+  }
+
+  .unit {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .tile-sub,
+  .tile-detail {
+    color: var(--muted);
+    font-size: 11.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tile-detail { color: var(--faint); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--stroke);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .hint {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .segmented {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--stroke);
+    border-radius: 7px;
+    background: var(--page);
+    flex-wrap: wrap;
+  }
+
+  .segmented button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+
+  .segmented button[aria-selected="true"] {
+    background: var(--ink);
+    color: var(--page);
+  }
+
+  .range-summary {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin: 6px 0 12px;
+  }
+
+  .range-total {
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .range-sub {
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .chip {
+    border: 1px solid var(--stroke);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .chip b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .model-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 14px 0 4px;
+  }
+
+  .model-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .model-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 240px) 1fr 76px 48px;
+    gap: 10px;
+    align-items: center;
+    padding: 5px 6px;
+    border-radius: 6px;
+  }
+
+  .model-row:hover { background: var(--page); }
+
+  .model-row:focus-visible {
+    outline: 2px solid var(--series);
+    outline-offset: 1px;
+  }
+
+  .model-name {
+    font-size: 12.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .model-track {
+    height: 10px;
+    background: var(--grid);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .model-fill {
+    display: block;
+    height: 100%;
+    background: var(--series);
+    border-radius: 0 4px 4px 0;
+  }
+
+  .model-value,
+  .model-share {
+    text-align: right;
+    font-size: 12.5px;
+  }
+
+  .model-share { color: var(--muted); }
+
+  .chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .grid { stroke: var(--grid); stroke-width: 1; }
+  .axis { stroke: var(--axis); stroke-width: 1; }
+  .axis-label {
+    fill: var(--muted);
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar {
+    fill: var(--series);
+    pointer-events: none;
+  }
+  .bar-group:hover .bar,
+  .bar-group:focus-within .bar { opacity: .82; }
+
+  .hit { fill: transparent; }
+  .hit:focus-visible {
+    outline: none;
+    stroke: var(--series);
+    stroke-width: 1.5;
+  }
+
+  #tooltip {
+    position: fixed;
+    z-index: 20;
+    max-width: 340px;
+    padding: 8px 10px;
+    background: var(--ink);
+    color: var(--page);
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-line;
+    pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+  }
+
+  #tooltip[hidden] { display: none; }
+
+  .empty {
+    color: var(--faint);
+    font-size: 13px;
+    margin: 10px 0;
+  }
+
+  .table-wrap {
+    overflow: auto;
+    max-height: 420px;
+    border: 1px solid var(--stroke);
+    border-radius: 6px;
+    margin-top: 10px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th, td {
+    padding: 6px 10px;
+    text-align: right;
+    border-bottom: 1px solid var(--stroke);
+    white-space: nowrap;
+  }
+
+  th:first-child,
+  td:first-child,
+  tbody th { text-align: left; }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 500;
+    z-index: 1;
+  }
+
+  tbody th {
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  .matrix-wrap { max-height: 440px; }
+
+  .matrix td,
+  .matrix th {
+    padding: 5px 8px;
+    font-size: 11.5px;
+  }
+
+  .matrix tbody th,
+  .matrix thead th:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    z-index: 2;
+  }
+
+  .matrix thead th:first-child { z-index: 3; }
+
+  .matrix .total-cell { font-weight: 600; }
+
+  details { margin-top: 8px; }
+
+  summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12px;
+    user-select: none;
+  }
+
+  details[open] summary { color: var(--ink); }
+
+  .note {
+    color: var(--muted);
+    font-size: 11.5px;
+    line-height: 1.6;
+    margin: 10px 0 0;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    color: var(--muted);
+    font-size: 11.5px;
+    margin-top: 18px;
+  }
+
+  @media (max-width: 860px) {
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .model-row { grid-template-columns: minmax(100px, 170px) 1fr 64px 44px; }
+  }
+
+  @media (max-width: 560px) {
+    .wrap { padding: 16px 12px 32px; }
+    .tiles { grid-template-columns: 1fr; }
+    header.top { flex-direction: column; }
+    .card { padding: 14px; }
+    .range-total { font-size: 24px; }
+    .model-row {
+      grid-template-columns: minmax(76px, 1fr) 1.4fr 52px 40px;
+      gap: 6px;
+    }
+    .model-row { padding: 5px 2px; }
+    .tile-value { font-size: 23px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Token 用量</h1>
+      <p class="subtitle">按模型、天、周、月的本地统计 · 数据留在本机</p>
+    </div>
+    <div class="controls">
+      <button class="ghost" id="refresh" type="button">刷新</button>
+      <button class="ghost" id="theme" type="button">深色</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <section class="tiles" id="tiles" aria-label="各范围总量"></section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>范围统计</h2>
+      <div class="segmented" id="range" role="tablist" aria-label="统计范围">
+        <button type="button" role="tab" data-range="today" aria-selected="false">今日</button>
+        <button type="button" role="tab" data-range="week" aria-selected="false">本周</button>
+        <button type="button" role="tab" data-range="month" aria-selected="true">本月</button>
+        <button type="button" role="tab" data-range="all" aria-selected="false">全部</button>
+      </div>
+    </div>
+    <div id="range-summary"></div>
+    <div class="model-head">
+      <h3>按模型</h3>
+      <span class="hint">合计占比</span>
+    </div>
+    <div id="model-chart" class="model-list" role="list" aria-label="按模型 Token 合计"></div>
+    <details>
+      <summary>按模型数据表</summary>
+      <div id="model-table" class="table-wrap"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>每日 Token</h2>
+      <span class="hint">近 30 天 · 合计</span>
+    </div>
+    <div id="daily-chart" class="chart"></div>
+    <details>
+      <summary>每日数据表</summary>
+      <div id="daily-table" class="table-wrap"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>每周 Token</h2>
+      <span class="hint">近 8 周 · 合计</span>
+    </div>
+    <div id="weekly-chart" class="chart"></div>
+    <details>
+      <summary>每周数据表</summary>
+      <div id="weekly-table" class="table-wrap"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>每月 Token</h2>
+      <span class="hint">近 12 个月 · 合计</span>
+    </div>
+    <div id="monthly-chart" class="chart"></div>
+    <details>
+      <summary>每月数据表</summary>
+      <div id="monthly-table" class="table-wrap"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>每天 × 模型</h2>
+      <span class="hint">近 30 天</span>
+    </div>
+    <div id="matrix" class="table-wrap matrix-wrap"></div>
+    <p class="note">
+      仅显示总量最高的 6 个模型，其余归入“其他”；“合计”为全部模型。
+      合计 = 未缓存输入 + 缓存写 + 缓存读 + 输出。
+    </p>
+  </section>
+
+  <footer class="meta" id="meta"></footer>
+  <p class="note">
+    实时数据来自会话钩子；历史数据从本地 transcript 去重解析，重试或内部调用可能带来少量误差。
+  </p>
+</div>
+
+<div id="tooltip" hidden></div>
+
+<script>
+(function () {
+  'use strict'
+
+  var EMBEDDED = /*__TOKEN_METER_DATA__*/ null
+  var POLL_MS = 5000
+  var isStatic = EMBEDDED !== null && typeof EMBEDDED === 'object'
+  var ZERO = { i: 0, o: 0, cr: 0, cc: 0, n: 0, total: 0 }
+  var RANGE_LABEL = { today: '今日', week: '本周', month: '本月', all: '全部历史' }
+  var COMPARE_LABEL = { today: '对比昨日', week: '对比上周', month: '对比上月' }
+  var RANGE_PREV = { today: 'prevDay', week: 'prevWeek', month: 'prevMonth' }
+  var BACKFILL_LABEL = { none: '未开始', running: '导入中', done: '已完成', error: '失败' }
+
+  var snapshot = normalizeSnapshot(EMBEDDED)
+  var range = 'month'
+  var lastGenerated = -1
+  var rendered = false
+  var loading = false
+  var initialLoad = !isStatic
+  var lastError = ''
+
+  function num(value) {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? Math.round(value)
+      : 0
+  }
+
+  function formatInt(n) {
+    var value = Math.round(n || 0)
+    var sign = value < 0 ? '-' : ''
+    var digits = String(Math.abs(value))
+    var out = ''
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 === 0) out += ','
+      out += digits[i]
+    }
+    return sign + out
+  }
+
+  function compact(value) {
+    if (value >= 100) return String(Math.round(value))
+    var text = (Math.round(value * 10) / 10).toFixed(1)
+    return text.endsWith('.0') ? text.slice(0, -2) : text
+  }
+
+  function formatTokens(n) {
+    var value = Math.round(n || 0)
+    if (value >= 1e9) return compact(value / 1e9) + 'B'
+    if (value >= 1e6) return compact(value / 1e6) + 'M'
+    if (value >= 1e3) return compact(value / 1e3) + 'k'
+    return String(value)
+  }
+
+  function pct(value, total) {
+    if (total <= 0) return '—'
+    var p = (value / total) * 100
+    if (p >= 10) return Math.round(p) + '%'
+    return (Math.round(p * 10) / 10).toFixed(1) + '%'
+  }
+
+  function cacheHit(s) {
+    var base = s.i + s.cr + s.cc
+    if (base <= 0) return '—'
+    return (Math.round((s.cr / base) * 1000) / 10).toFixed(1) + '%'
+  }
+
+  function deltaText(current, previous) {
+    if (previous <= 0) return current > 0 ? '新增' : '持平'
+    var value = ((current - previous) / previous) * 100
+    var sign = value >= 0 ? '+' : ''
+    return sign + (Math.round(value * 10) / 10).toFixed(1) + '%'
+  }
+
+  function esc(value) {
+    return String(value).replace(/[&<>"']/g, function (ch) {
+      if (ch === '&') return '&amp;'
+      if (ch === '<') return '&lt;'
+      if (ch === '>') return '&gt;'
+      if (ch === '"') return '&quot;'
+      return '&#39;'
+    })
+  }
+
+  function shortModel(value, max) {
+    var text = String(value)
+    return text.length <= max ? text : text.slice(0, Math.max(1, max - 1)) + '…'
+  }
+
+  function normalizeSummary(value) {
+    if (!value || typeof value !== 'object') return { i: 0, o: 0, cr: 0, cc: 0, n: 0, total: 0 }
+    var i = num(value.i)
+    var o = num(value.o)
+    var cr = num(value.cr)
+    var cc = num(value.cc)
+    return { i: i, o: o, cr: cr, cc: cc, n: num(value.n), total: i + o + cr + cc }
+  }
+
+  function normalizeRows(value) {
+    if (!Array.isArray(value)) return []
+    return value
+      .map(function (row) {
+        var summary = normalizeSummary(row)
+        return {
+          model: row && typeof row.model === 'string' ? row.model : 'unknown',
+          i: summary.i,
+          o: summary.o,
+          cr: summary.cr,
+          cc: summary.cc,
+          n: summary.n,
+          total: summary.total
+        }
+      })
+      .filter(function (row) { return row.total > 0 })
+      .sort(function (a, b) {
+        return b.total - a.total || (a.model < b.model ? -1 : 1)
+      })
+  }
+
+  function normalizeDay(row) {
+    if (!row || typeof row !== 'object') return null
+    if (typeof row.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.date)) return null
+    var summary = normalizeSummary(row)
+    var models = {}
+    if (row.models && typeof row.models === 'object') {
+      Object.keys(row.models).forEach(function (name) {
+        var value = num(row.models[name])
+        if (value > 0) models[name] = value
+      })
+    }
+    return {
+      date: row.date,
+      i: summary.i,
+      o: summary.o,
+      cr: summary.cr,
+      cc: summary.cc,
+      n: summary.n,
+      total: summary.total,
+      models: models
+    }
+  }
+
+  function normalizeMonth(row) {
+    if (!row || typeof row !== 'object') return null
+    if (typeof row.month !== 'string' || !/^\d{4}-\d{2}$/.test(row.month)) return null
+    var summary = normalizeSummary(row)
+    var models = {}
+    if (row.models && typeof row.models === 'object') {
+      Object.keys(row.models).forEach(function (name) {
+        var value = num(row.models[name])
+        if (value > 0) models[name] = value
+      })
+    }
+    return {
+      month: row.month,
+      i: summary.i,
+      o: summary.o,
+      cr: summary.cr,
+      cc: summary.cc,
+      n: summary.n,
+      total: summary.total,
+      models: models
+    }
+  }
+
+  function normalizeSnapshot(raw) {
+    var source = raw && typeof raw === 'object' ? raw : {}
+    var ranges = source.ranges && typeof source.ranges === 'object' ? source.ranges : {}
+    var models = source.models && typeof source.models === 'object' ? source.models : {}
+    var meta = source.meta && typeof source.meta === 'object' ? source.meta : {}
+
+    var outRanges = {}
+    ;['today', 'prevDay', 'week', 'prevWeek', 'month', 'prevMonth', 'all'].forEach(function (key) {
+      outRanges[key] = normalizeSummary(ranges[key])
+    })
+
+    var outModels = {}
+    ;['today', 'week', 'month', 'all'].forEach(function (key) {
+      outModels[key] = normalizeRows(models[key])
+    })
+
+    var backfill = typeof meta.backfill === 'string' ? meta.backfill : 'none'
+    if (!BACKFILL_LABEL[backfill]) backfill = 'none'
+
+    return {
+      v: num(source.v),
+      generatedAt: num(source.generatedAt),
+      today: typeof source.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.today)
+        ? source.today
+        : '',
+      weekStart: typeof source.weekStart === 'string' ? source.weekStart : '',
+      month: typeof source.month === 'string' ? source.month : '',
+      ranges: outRanges,
+      models: outModels,
+      daily: Array.isArray(source.daily) ? source.daily.map(normalizeDay).filter(Boolean) : [],
+      monthly: Array.isArray(source.monthly) ? source.monthly.map(normalizeMonth).filter(Boolean) : [],
+      meta: {
+        backfill: backfill,
+        backfillError: typeof meta.backfillError === 'string' ? meta.backfillError : '',
+        sessions: num(meta.sessions),
+        version: num(meta.version)
+      }
+    }
+  }
+
+  function localDay() {
+    var d = new Date()
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0')
+  }
+
+  function parseDay(day) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
+    if (!match) return null
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0)
+  }
+
+  function fmtDay(date) {
+    return date.getFullYear() + '-' +
+      String(date.getMonth() + 1).padStart(2, '0') + '-' +
+      String(date.getDate()).padStart(2, '0')
+  }
+
+  function addDays(day, n) {
+    var date = parseDay(day)
+    if (!date) return day
+    date.setDate(date.getDate() + n)
+    return fmtDay(date)
+  }
+
+  function weekStartOf(day) {
+    var date = parseDay(day)
+    if (!date) return day
+    var weekday = date.getDay()
+    return addDays(day, weekday === 0 ? -6 : 1 - weekday)
+  }
+
+  function niceMax(max) {
+    if (!(max > 0)) return 1
+    var exp = Math.floor(Math.log10(max))
+    var base = Math.pow(10, exp)
+    var n = max / base
+    var factor = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10
+    return factor * base
+  }
+
+  function topRoundedPath(x, y, w, h) {
+    var r = Math.min(4, w / 2, h)
+    var x2 = x + w
+    var bottom = y + h
+    return 'M' + x + ',' + bottom +
+      ' L' + x + ',' + (y + r) +
+      ' Q' + x + ',' + y + ' ' + (x + r) + ',' + y +
+      ' L' + (x2 - r) + ',' + y +
+      ' Q' + x2 + ',' + y + ' ' + x2 + ',' + (y + r) +
+      ' L' + x2 + ',' + bottom + ' Z'
+  }
+
+  function buildTable(headers, rows) {
+    var head = headers.map(function (header) {
+      return '<th scope="col">' + esc(header) + '</th>'
+    }).join('')
+    var body = rows.map(function (row) {
+      return '<tr>' + row.map(function (cell, index) {
+        if (index === 0) return '<th scope="row">' + esc(cell) + '</th>'
+        return '<td>' + esc(cell) + '</td>'
+      }).join('') + '</tr>'
+    }).join('')
+    return '<table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>'
+  }
+
+  function renderTable(id, headers, rows, emptyText) {
+    var el = document.getElementById(id)
+    if (!el) return
+    if (!rows.length) {
+      el.innerHTML = '<p class="empty">' + esc(emptyText || '暂无数据') + '</p>'
+      return
+    }
+    el.innerHTML = buildTable(headers, rows)
+  }
+
+  function renderBarChart(container, points, options) {
+    var max = 0
+    points.forEach(function (point) { max = Math.max(max, point.total) })
+    if (!points.length || max <= 0) {
+      container.innerHTML = '<p class="empty">暂无数据</p>'
+      return
+    }
+
+    var width = Math.max(300, Math.floor(container.clientWidth || 640))
+    var height = options.height || 210
+    var pad = { l: 52, r: 12, t: 18, b: 28 }
+    var innerW = width - pad.l - pad.r
+    var innerH = height - pad.t - pad.b
+    var yMax = niceMax(max)
+    var step = innerW / points.length
+    var barW = Math.min(24, Math.max(2, step - 2))
+    var baseline = pad.t + innerH
+    var pieces = []
+
+    function y(value) {
+      return pad.t + innerH - (value / yMax) * innerH
+    }
+
+    pieces.push('<svg viewBox="0 0 ' + width + ' ' + height + '" width="100%" height="' +
+      height + '" role="img" aria-label="' +
+      esc(options.title + '，最高 ' + formatInt(max) + ' tok') + '">')
+
+    for (var t = 0; t <= 4; t++) {
+      var value = (yMax * t) / 4
+      var gy = y(value)
+      pieces.push('<line class="grid" x1="' + pad.l + '" x2="' + (pad.l + innerW) +
+        '" y1="' + gy.toFixed(2) + '" y2="' + gy.toFixed(2) + '"></line>')
+      pieces.push('<text class="axis-label" x="' + (pad.l - 8) + '" y="' +
+        (gy + 3.5).toFixed(2) + '" text-anchor="end">' + esc(formatTokens(value)) + '</text>')
+    }
+
+    pieces.push('<line class="axis" x1="' + pad.l + '" x2="' + (pad.l + innerW) +
+      '" y1="' + baseline + '" y2="' + baseline + '"></line>')
+
+    points.forEach(function (point, index) {
+      var x = pad.l + index * step + (step - barW) / 2
+      var rawHeight = Math.max(0, baseline - y(point.total))
+      var barHeight = point.total > 0 ? Math.max(1.5, rawHeight) : 0
+      var top = baseline - barHeight
+      var tip = point.tip
+
+      pieces.push('<g class="bar-group">')
+      pieces.push('<rect class="hit" x="' + (pad.l + index * step).toFixed(2) +
+        '" y="' + pad.t + '" width="' + step.toFixed(2) + '" height="' + innerH +
+        '" pointer-events="all" tabindex="0" role="img" aria-label="' + esc(tip) +
+        '" data-tip="' + esc(tip) + '"></rect>')
+      if (barHeight > 0) {
+        pieces.push('<path class="bar" d="' + topRoundedPath(x, top, barW, barHeight) + '"></path>')
+      }
+      pieces.push('</g>')
+    })
+
+    var maxLabels = Math.max(2, Math.floor(innerW / 52))
+    var labelCount = Math.min(points.length, maxLabels)
+    var seen = {}
+    for (var j = 0; j < labelCount; j++) {
+      var index = labelCount <= 1 ? 0 : Math.round((j * (points.length - 1)) / (labelCount - 1))
+      if (seen[index]) continue
+      seen[index] = true
+      var cx = pad.l + index * step + step / 2
+      pieces.push('<text class="axis-label" x="' + cx.toFixed(2) + '" y="' + (baseline + 17) +
+        '" text-anchor="middle">' + esc(points[index].short) + '</text>')
+    }
+
+    pieces.push('</svg>')
+    container.innerHTML = pieces.join('')
+  }
+
+  function emptyHint() {
+    if (initialLoad) return '正在读取数据…'
+    if (snapshot.meta.backfill === 'running') return '正在导入历史数据…'
+    if (snapshot.ranges.all.total <= 0) return '暂无数据；历史可用 /tokens backfill 导入'
+    return '暂无数据'
+  }
+
+  function renderTiles() {
+    var el = document.getElementById('tiles')
+    var items = [
+      { key: 'today', label: '今日', prev: 'prevDay', title: '对比昨日' },
+      { key: 'week', label: '本周', prev: 'prevWeek', title: '对比上周' },
+      { key: 'month', label: '本月', prev: 'prevMonth', title: '对比上月' },
+      { key: 'all', label: '全部' }
+    ]
+    el.innerHTML = items.map(function (item) {
+      var s = snapshot.ranges[item.key]
+      var delta = item.prev
+        ? deltaText(s.total, snapshot.ranges[item.prev].total)
+        : (snapshot.meta.sessions > 0 ? formatInt(snapshot.meta.sessions) + ' 个会话' : '—')
+      var deltaTitle = item.prev ? item.title : '会话记录数'
+      return '<article class="tile">' +
+        '<div class="tile-top"><span class="tile-label">' + esc(item.label) +
+        '</span><span class="tile-delta" title="' + esc(deltaTitle) + '">' + esc(delta) +
+        '</span></div>' +
+        '<div class="tile-value">' + formatTokens(s.total) + '<span class="unit">tok</span></div>' +
+        '<div class="tile-sub">' + formatInt(s.n) + ' 次请求 · 缓存命中 ' + cacheHit(s) + '</div>' +
+        '<div class="tile-detail">输入 ' + formatTokens(s.i) + ' · 缓存写 ' + formatTokens(s.cc) +
+        ' · 缓存读 ' + formatTokens(s.cr) + ' · 输出 ' + formatTokens(s.o) + '</div>' +
+        '</article>'
+    }).join('')
+  }
+
+  function renderRangeCard() {
+    var s = snapshot.ranges[range]
+    var prevKey = RANGE_PREV[range]
+    var compare = prevKey
+      ? COMPARE_LABEL[range] + ' ' + deltaText(s.total, snapshot.ranges[prevKey].total)
+      : ''
+    var summary = document.getElementById('range-summary')
+    summary.innerHTML =
+      '<div class="range-summary">' +
+        '<div class="range-total">' + formatTokens(s.total) + '<span class="unit">tok</span></div>' +
+        '<div class="range-sub">' + esc(RANGE_LABEL[range] || range) + ' · ' +
+          formatInt(s.n) + ' 次请求 · 缓存命中 ' + cacheHit(s) +
+          (compare ? ' · ' + esc(compare) : '') + '</div>' +
+      '</div>' +
+      '<div class="chips">' + [
+        ['输入', s.i], ['缓存写', s.cc], ['缓存读', s.cr], ['输出', s.o]
+      ].map(function (item) {
+        return '<span class="chip"><b>' + item[0] + '</b> ' + formatTokens(item[1]) +
+          ' <span class="hint">' + pct(item[1], s.total) + '</span></span>'
+      }).join('') + '</div>'
+
+    var rows = snapshot.models[range] || []
+    var modelEl = document.getElementById('model-chart')
+    if (!rows.length) {
+      modelEl.innerHTML = '<p class="empty">' + esc(emptyHint()) + '</p>'
+    } else {
+      var max = 0
+      rows.forEach(function (row) { max = Math.max(max, row.total) })
+      modelEl.innerHTML = rows.map(function (row) {
+        var width = max > 0 ? Math.max(1, (row.total / max) * 100) : 0
+        var tip = row.model + '\n合计 ' + formatInt(row.total) + ' tok · ' +
+          formatInt(row.n) + ' 次请求\n输入 ' + formatInt(row.i) +
+          ' · 缓存写 ' + formatInt(row.cc) + ' · 缓存读 ' + formatInt(row.cr) +
+          ' · 输出 ' + formatInt(row.o)
+        return '<div class="model-row" tabindex="0" role="listitem" data-tip="' + esc(tip) + '">' +
+          '<span class="model-name" title="' + esc(row.model) + '">' + esc(row.model) + '</span>' +
+          '<span class="model-track"><span class="model-fill" style="width:' +
+            width.toFixed(1) + '%"></span></span>' +
+          '<span class="model-value">' + formatTokens(row.total) + '</span>' +
+          '<span class="model-share">' + pct(row.total, s.total) + '</span>' +
+          '</div>'
+      }).join('')
+    }
+
+    renderTable('model-table',
+      ['模型', '请求', '输入', '缓存写', '缓存读', '输出', '合计', '占比'],
+      rows.map(function (row) {
+        return [row.model, formatInt(row.n), formatInt(row.i), formatInt(row.cc),
+          formatInt(row.cr), formatInt(row.o), formatInt(row.total), pct(row.total, s.total)]
+      }),
+      emptyHint()
+    )
+  }
+
+  function renderDaily() {
+    var days = snapshot.daily.slice(-30)
+    var points = days.map(function (day) {
+      return {
+        short: day.date.slice(5),
+        total: day.total,
+        tip: day.date + '\n合计 ' + formatInt(day.total) + ' tok\n' +
+          formatInt(day.n) + ' 次请求\n输入 ' + formatInt(day.i) +
+          ' · 缓存写 ' + formatInt(day.cc) + ' · 缓存读 ' + formatInt(day.cr) +
+          ' · 输出 ' + formatInt(day.o)
+      }
+    })
+    renderBarChart(document.getElementById('daily-chart'), points, {
+      title: '近 30 天每日 Token 合计',
+      height: 210
+    })
+    renderTable('daily-table',
+      ['日期', '请求', '输入', '缓存写', '缓存读', '输出', '合计'],
+      days.map(function (day) {
+        return [day.date, formatInt(day.n), formatInt(day.i), formatInt(day.cc),
+          formatInt(day.cr), formatInt(day.o), formatInt(day.total)]
+      })
+    )
+  }
+
+  function weekPoints() {
+    var today = snapshot.today || localDay()
+    var currentStart = weekStartOf(today)
+    var byDate = {}
+    snapshot.daily.forEach(function (day) { byDate[day.date] = day })
+    var points = []
+
+    for (var back = 7; back >= 0; back--) {
+      var start = addDays(currentStart, -7 * back)
+      var end = addDays(start, 6)
+      if (end > today) end = today
+      var acc = { i: 0, o: 0, cr: 0, cc: 0, n: 0, total: 0 }
+      var cursor = start
+      var guard = 0
+      while (cursor <= end && guard < 8) {
+        var day = byDate[cursor]
+        if (day) {
+          acc.i += day.i
+          acc.o += day.o
+          acc.cr += day.cr
+          acc.cc += day.cc
+          acc.n += day.n
+          acc.total += day.total
+        }
+        cursor = addDays(cursor, 1)
+        guard++
+      }
+      points.push({
+        short: start.slice(5),
+        start: start,
+        end: end,
+        total: acc.total,
+        tip: '周 ' + start + ' ~ ' + end + '\n合计 ' + formatInt(acc.total) + ' tok\n' +
+          formatInt(acc.n) + ' 次请求\n输入 ' + formatInt(acc.i) +
+          ' · 缓存写 ' + formatInt(acc.cc) + ' · 缓存读 ' + formatInt(acc.cr) +
+          ' · 输出 ' + formatInt(acc.o),
+        acc: acc
+      })
+    }
+    return points
+  }
+
+  function renderWeekly() {
+    var points = weekPoints()
+    renderBarChart(document.getElementById('weekly-chart'), points, {
+      title: '近 8 周每周 Token 合计',
+      height: 200
+    })
+    renderTable('weekly-table',
+      ['周（起始 ~ 结束）', '请求', '输入', '缓存写', '缓存读', '输出', '合计'],
+      points.map(function (point) {
+        return [point.start + ' ~ ' + point.end, formatInt(point.acc.n),
+          formatInt(point.acc.i), formatInt(point.acc.cc), formatInt(point.acc.cr),
+          formatInt(point.acc.o), formatInt(point.acc.total)]
+      })
+    )
+  }
+
+  function renderMonthly() {
+    var months = snapshot.monthly
+    var points = months.map(function (month) {
+      return {
+        short: month.month.slice(2),
+        total: month.total,
+        tip: month.month + '\n合计 ' + formatInt(month.total) + ' tok\n' +
+          formatInt(month.n) + ' 次请求\n输入 ' + formatInt(month.i) +
+          ' · 缓存写 ' + formatInt(month.cc) + ' · 缓存读 ' + formatInt(month.cr) +
+          ' · 输出 ' + formatInt(month.o)
+      }
+    })
+    renderBarChart(document.getElementById('monthly-chart'), points, {
+      title: '近 12 个月每月 Token 合计',
+      height: 200
+    })
+    renderTable('monthly-table',
+      ['月份', '请求', '输入', '缓存写', '缓存读', '输出', '合计'],
+      months.map(function (month) {
+        return [month.month, formatInt(month.n), formatInt(month.i),
+          formatInt(month.cc), formatInt(month.cr), formatInt(month.o),
+          formatInt(month.total)]
+      })
+    )
+  }
+
+  function heatCell(date, model, value, max) {
+    var style = ''
+    if (value > 0) {
+      var ratio = Math.min(1, value / max)
+      var alpha = 0.05 + ratio * 0.42
+      style = ' style="background: rgba(var(--heat), ' + alpha.toFixed(3) + ')"'
+    }
+    var title = date + ' · ' + model + '：' + formatInt(value) + ' tok'
+    return '<td class="heat"' + style + ' title="' + esc(title) + '">' +
+      formatTokens(value) + '</td>'
+  }
+
+  function renderMatrix() {
+    var el = document.getElementById('matrix')
+    var days = snapshot.daily.slice(-30)
+    if (!days.length || snapshot.ranges.all.total <= 0) {
+      el.innerHTML = '<p class="empty">' + esc(emptyHint()) + '</p>'
+      return
+    }
+
+    var totals = {}
+    days.forEach(function (day) {
+      Object.keys(day.models).forEach(function (model) {
+        totals[model] = (totals[model] || 0) + day.models[model]
+      })
+    })
+    var ranked = Object.keys(totals).sort(function (a, b) { return totals[b] - totals[a] })
+    var shown = ranked.slice(0, 6)
+    var others = ranked.slice(6)
+    var hasOther = others.length > 0
+
+    var maxCell = 0
+    days.forEach(function (day) {
+      shown.forEach(function (model) {
+        maxCell = Math.max(maxCell, day.models[model] || 0)
+      })
+      if (hasOther) {
+        var other = 0
+        others.forEach(function (model) { other += day.models[model] || 0 })
+        maxCell = Math.max(maxCell, other)
+      }
+    })
+    if (maxCell <= 0) {
+      el.innerHTML = '<p class="empty">暂无模型数据</p>'
+      return
+    }
+
+    var headers = ['日期'].concat(shown)
+    if (hasOther) headers.push('其他')
+    headers.push('合计')
+
+    var head = headers.map(function (header) {
+      var text = header === '日期' ? header : shortModel(header, 18)
+      return '<th scope="col" title="' + esc(header) + '">' + esc(text) + '</th>'
+    }).join('')
+
+    var body = days.slice().reverse().map(function (day) {
+      var cells = shown.map(function (model) {
+        return heatCell(day.date, model, day.models[model] || 0, maxCell)
+      })
+      if (hasOther) {
+        var other = 0
+        others.forEach(function (model) { other += day.models[model] || 0 })
+        cells.push(heatCell(day.date, '其他', other, maxCell))
+      }
+      cells.push('<td class="total-cell">' + formatTokens(day.total) + '</td>')
+      return '<tr><th scope="row">' + esc(day.date) + '</th>' + cells.join('') + '</tr>'
+    }).join('')
+
+    el.innerHTML = '<table class="matrix"><thead><tr>' + head +
+      '</tr></thead><tbody>' + body + '</tbody></table>'
+  }
+
+  function bannerText() {
+    if (lastError) return lastError
+    if (initialLoad) return '正在读取数据…'
+    if (snapshot.meta.backfill === 'error') {
+      return '历史数据导入失败：' + (snapshot.meta.backfillError || '未知错误') +
+        '。可运行 /tokens backfill --force 重试。'
+    }
+    if (snapshot.ranges.all.total <= 0) {
+      if (snapshot.meta.backfill === 'running') return '正在导入历史 transcript…'
+      return '还没有统计数据。继续对话会自动累计；历史数据可用 /tokens backfill 导入。'
+    }
+    return ''
+  }
+
+  function renderMeta() {
+    var el = document.getElementById('meta')
+    var generated = snapshot.generatedAt
+      ? new Date(snapshot.generatedAt).toLocaleString('zh-CN', { hour12: false })
+      : '—'
+    var backfill = BACKFILL_LABEL[snapshot.meta.backfill] || snapshot.meta.backfill
+    el.innerHTML =
+      '<span>数据更新：' + esc(generated) + '</span>' +
+      '<span>' + (isStatic ? '静态快照' : '每 5 秒自动刷新') + '</span>' +
+      '<span>历史导入：' + esc(backfill) + '</span>' +
+      '<span>' + formatInt(snapshot.meta.sessions) + ' 个会话记录</span>'
+
+    var banner = document.getElementById('banner')
+    var text = bannerText()
+    if (text) {
+      banner.hidden = false
+      banner.textContent = text
+    } else {
+      banner.hidden = true
+      banner.textContent = ''
+    }
+  }
+
+  function render() {
+    renderTiles()
+    renderRangeCard()
+    renderDaily()
+    renderWeekly()
+    renderMonthly()
+    renderMatrix()
+    renderMeta()
+    rendered = true
+  }
+
+  function showTip(text, x, y) {
+    var tip = document.getElementById('tooltip')
+    tip.textContent = text
+    tip.hidden = false
+    var rect = tip.getBoundingClientRect()
+    var left = x + 14
+    var top = y + 14
+    if (left + rect.width > window.innerWidth - 8) left = x - rect.width - 14
+    if (top + rect.height > window.innerHeight - 8) top = y - rect.height - 14
+    tip.style.left = Math.max(8, left) + 'px'
+    tip.style.top = Math.max(8, top) + 'px'
+  }
+
+  function hideTip() {
+    var tip = document.getElementById('tooltip')
+    tip.hidden = true
+  }
+
+  function tipTarget(event) {
+    var target = event.target
+    return target && target.closest ? target.closest('[data-tip]') : null
+  }
+
+  function currentTheme() {
+    var explicit = document.documentElement.getAttribute('data-theme')
+    if (explicit === 'dark' || explicit === 'light') return explicit
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light'
+  }
+
+  function updateThemeButton() {
+    var button = document.getElementById('theme')
+    if (!button) return
+    var current = currentTheme()
+    button.textContent = current === 'dark' ? '浅色' : '深色'
+    button.setAttribute('aria-label', current === 'dark' ? '切换到浅色模式' : '切换到深色模式')
+  }
+
+  function toggleTheme() {
+    var next = currentTheme() === 'dark' ? 'light' : 'dark'
+    document.documentElement.setAttribute('data-theme', next)
+    try { localStorage.setItem('token-meter-theme', next) } catch (error) {}
+    updateThemeButton()
+  }
+
+  function load() {
+    if (isStatic || loading) return
+    loading = true
+    var button = document.getElementById('refresh')
+    if (button) button.disabled = true
+
+    fetch('/api/data', { cache: 'no-store' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status)
+        return response.json()
+      })
+      .then(function (data) {
+        if (data && data.error) throw new Error(String(data.error))
+        var next = normalizeSnapshot(data)
+        var changed = next.generatedAt !== lastGenerated
+        snapshot = next
+        lastGenerated = next.generatedAt
+        lastError = ''
+        if (!rendered || changed) render()
+      })
+      .catch(function (error) {
+        lastError = '读取数据失败：' +
+          (error && error.message ? error.message : String(error))
+      })
+      .finally(function () {
+        loading = false
+        initialLoad = false
+        if (button) button.disabled = false
+        renderMeta()
+      })
+  }
+
+  function init() {
+    var refresh = document.getElementById('refresh')
+    if (isStatic && refresh) refresh.hidden = true
+    if (refresh) refresh.addEventListener('click', load)
+
+    var theme = document.getElementById('theme')
+    if (theme) theme.addEventListener('click', toggleTheme)
+
+    try {
+      var saved = localStorage.getItem('token-meter-theme')
+      if (saved === 'light' || saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', saved)
+      }
+    } catch (error) {}
+
+    if (window.matchMedia) {
+      var media = window.matchMedia('(prefers-color-scheme: dark)')
+      if (media.addEventListener) media.addEventListener('change', updateThemeButton)
+    }
+    updateThemeButton()
+
+    var rangeEl = document.getElementById('range')
+    if (rangeEl) {
+      rangeEl.addEventListener('click', function (event) {
+        var button = event.target && event.target.closest
+          ? event.target.closest('button[data-range]')
+          : null
+        if (!button) return
+        range = button.getAttribute('data-range') || 'month'
+        var buttons = rangeEl.querySelectorAll('button[data-range]')
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].setAttribute('aria-selected', buttons[i] === button ? 'true' : 'false')
+        }
+        renderRangeCard()
+      })
+    }
+
+    var resizeTimer = 0
+    window.addEventListener('resize', function () {
+      window.clearTimeout(resizeTimer)
+      resizeTimer = window.setTimeout(function () {
+        renderDaily()
+        renderWeekly()
+        renderMonthly()
+      }, 150)
+    })
+
+    document.addEventListener('pointermove', function (event) {
+      var target = tipTarget(event)
+      if (!target) {
+        hideTip()
+        return
+      }
+      showTip(target.getAttribute('data-tip'), event.clientX, event.clientY)
+    }, { passive: true })
+
+    document.addEventListener('focusin', function (event) {
+      var target = tipTarget(event)
+      if (!target) return
+      var rect = target.getBoundingClientRect()
+      showTip(target.getAttribute('data-tip'), rect.left + rect.width / 2, rect.bottom)
+    })
+
+    document.addEventListener('focusout', function (event) {
+      if (tipTarget(event)) hideTip()
+    })
+
+    document.documentElement.addEventListener('pointerleave', hideTip)
+    document.addEventListener('scroll', hideTip, { passive: true, capture: true })
+
+    if (isStatic) {
+      initialLoad = false
+      render()
+    } else {
+      render()
+      load()
+      window.setInterval(function () {
+        if (!document.hidden) load()
+      }, POLL_MS)
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) load()
+      })
+    }
+  }
+
+  init()
+})()
+</script>
+</body>
+</html>

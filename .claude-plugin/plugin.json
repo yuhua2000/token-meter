@@ -1,0 +1,6 @@
+{
+  "name": "token-meter",
+  "version": "0.1.0",
+  "description": "Local token usage statistics by model, day, week and month, with a lightweight browser dashboard.",
+  "types": "./types/index.d.ts"
+}
